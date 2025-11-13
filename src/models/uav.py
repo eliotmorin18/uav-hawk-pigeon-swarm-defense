@@ -55,7 +55,7 @@ class UAV:
             log_maxlen: Maximum log entries (FIFO)
         """
         # Safety thresholds MUST be defined FIRST
-        self._mu_eps = 0.01  # Avoid μ = ±π/2 singularity
+        self._mu_eps = 0.02  # Avoid μ = ±π/2 singularity
         self._V_eps = 1e-6   # Avoid V = 0 singularity
         
         # Physical constants
