@@ -1,0 +1,99 @@
+{
+    "simulation": {
+      "dt": 0.01,
+      "t_max": 10.0,
+      "seed": 42
+    },
+  
+    "capture": {
+      "radius_DC": 10.0,
+      "hawk_sensing_Rs": 1000.0,
+      "pigeon_neighborhood_Rnei": 100.0,
+      "pigeon_escape_RE": 200.0,
+      "pigeon_avoid_RA": 50.0
+    },
+  
+    "uav_performance": {
+      "pigeon": {
+        "V_min": 13.89,
+        "V_max": 97.22,
+        "nx_max": 3.0,
+        "nx_min": -1.0,
+        "nf_max": 3.0,
+        "gamma_max": 1.57
+      },
+      "hawk": {
+        "V_min": 13.89,
+        "V_max": 111.11,
+        "nx_max": 3.0,
+        "nx_min": -1.0,
+        "nf_max": 3.0,
+        "gamma_max": 1.57
+      }
+    },
+  
+    "control_gains": {
+      "hawk": {
+        "mode": "adaptive",
+        "KPN_fixed": 1.0,
+        "KPP_fixed": 9.8
+      },
+      "pigeon": {
+        "k1_attract": 5.0,
+        "k2_escape_base": 1.0,
+        "k3_avoid": 1.0
+      }
+    },
+  
+    "environment": {
+      "gravity": 9.8
+    },
+  
+    "scenarios": {
+      "active": "one_v_one_3d",
+      
+      "one_v_one_3d": {
+        "hawks": 1,
+        "pigeons": 1,
+        "dimension": 3,
+        "target": {
+          "position": [0.0, 0.0, 1500.0]
+        },
+        "initial_conditions": {
+          "hawk": {
+            "position": [0.0, 400.0, 1500.0],
+            "velocity": [50.0, 0.0, 0.0],
+            "heading": 0.0,
+            "flight_path_angle": 0.0
+          },
+          "pigeon": {
+            "position": [-200.0, 200.0, 1500.0],
+            "velocity": [60.0, 0.0, 0.0],
+            "heading": 0.0,
+            "flight_path_angle": 0.0
+          }
+        }
+      },
+  
+      "one_v_one_2d": {
+        "hawks": 1,
+        "pigeons": 1,
+        "dimension": 2,
+        "target": {
+          "position": [0.0, 300.0]
+        },
+        "initial_conditions": {
+          "hawk": {
+            "position": [0.0, 0.0],
+            "velocity": [50.0, 0.0],
+            "heading": 0.0
+          },
+          "pigeon": {
+            "position": [200.0, 100.0],
+            "velocity": [60.0, 0.0],
+            "heading": -0.785
+          }
+        }
+      }
+    }
+  }
