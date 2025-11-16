@@ -12,7 +12,7 @@ We also perform **data analysis** on simulation metrics (win rate, number of cap
 
 - Eliot Morin — [@eliotmorin18](https://github.com/eliotmorin18)
 - Hugo Trébert — [@hugotrbt](https://github.com/hugotrbt)
-- Mikhaïl Iakovlev — [@github-link](https://github.com/)
+- Mikhaïl Iakovlev — [@github-link](https://github.com/miakovlevv)
 
 ## Starting Point
 
