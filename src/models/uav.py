@@ -182,21 +182,29 @@ class UAV:
         """
         Integrate equation (2) over one time step using Euler method.
         
+        **HYPOTHÈSE DU PAPIER (Assumption 1, Section IV):**
+        - Vitesse V = V_max CONSTANTE (pas de V_dot)
+        - Seuls μ et φ évoluent dynamiquement
+        
         Args:
             controls: Dict with keys {nx, nf, gamma}
             dt: Time step (typically 0.01s)
         
         Updates:
-            Internal state [x, y, z, V, μ, φ]
+            Internal state [x, y, z, μ, φ]
+            V reste CONSTANT à V_max
         """
         # Log before integration
         if self.log_enabled:
             self._log_state(controls, phase='before')
         
-        # Extract and clamp controls (safety layer)
+        # Extract and clamp controls
         nx = np.clip(controls['nx'], self.nx_min, self.nx_max)
         nf = np.clip(controls['nf'], -self.nf_max, self.nf_max)
         gamma = np.clip(controls['gamma'], -self.gamma_max, self.gamma_max)
+        
+        # ========== HYPOTHÈSE DU PAPIER : V = V_max CONSTANT ==========
+        self.V = self.V_max  # ✅ Vitesse CONSTANTE (comme Assumption 1)
         
         # Precompute trigonometric functions
         cos_mu = np.cos(self.mu)
@@ -206,13 +214,13 @@ class UAV:
         cos_gamma = np.cos(gamma)
         sin_gamma = np.sin(gamma)
         
-        # Equation (2) - Kinematic equations
+        # ========== Equation (2) - POSITION (kinematic) ==========
         x_dot = self.V * cos_mu * cos_phi
         y_dot = self.V * cos_mu * sin_phi
         z_dot = self.V * sin_mu
         
-        # Equation (2) - Dynamic equations
-        V_dot = self.g * (nx - sin_mu)
+        # ========== Equation (2) - ANGLES (dynamic) ==========
+        # ⚠️ PAS DE V_dot (vitesse constante dans le papier)
         
         # Safe division for μ̇
         V_safe = max(self.V, self._V_eps)
@@ -222,11 +230,11 @@ class UAV:
         cos_mu_safe = max(abs(cos_mu), self._V_eps) * np.sign(cos_mu) if cos_mu != 0 else self._V_eps
         phi_dot = self.g * nf * sin_gamma / (V_safe * cos_mu_safe)
         
-        # Euler integration
+        # ========== Euler integration ==========
         self.x += x_dot * dt
         self.y += y_dot * dt
         self.z += z_dot * dt
-        self.V += V_dot * dt
+        # self.V += V_dot * dt  # ❌ SUPPRIMÉ (V constant)
         self.mu += mu_dot * dt
         self.phi += phi_dot * dt
         
@@ -240,7 +248,7 @@ class UAV:
     def _apply_constraints(self):
         """Apply physical limits to state variables."""
         # Speed limits
-        self.V = np.clip(self.V, self.V_min, self.V_max)
+        self.V = self.V_max
         
         # Flight path angle limits (avoid singularity)
         mu_max = np.pi/2 - self._mu_eps
