@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 from core.dynamics import rk4_step
 from core.converter import control_converter
+from models.uav import UAV
 
 def main():
     # Initial state: [x, y, z, V, mu, phi]
