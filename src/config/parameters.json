@@ -12,14 +12,14 @@
     "k1": 10.0,
     "Re": 200.0,
     "Ra": 50.0,
-    "max_speed": 350.0
+    "max_speed": 350.0,
+    "min_speed":50
   },
 
   "hawk": {
-    "KPN": 1.0,
-    "KPP": 2.0,
     "Rs": 300.0,
-    "max_speed": 400.0
+    "max_speed": 400.0,
+    "min_speed":50
   },
 
   "initial_positions": {
