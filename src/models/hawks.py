@@ -1,5 +1,7 @@
 import numpy as np
 from models.uav import UAV
+import json
+import os
 
 
 class Hawk(UAV):
@@ -8,8 +10,9 @@ class Hawk(UAV):
     Hérite de UAV et implémente les mécanismes de chasse inspirés du faucon de Harris.
     """
     
-    def __init__(self, x=0.0, y=0.0, z=0.0, V=100.0, mu=0.0, phi=0.0,
-                 sensing_radius=1000.0, neighbor_radius=100.0):
+    def __init__(self, x=None, y=None, z=None, V=100.0, mu=0.0, phi=0.0,
+                sensing_radius=None, neighbor_radius=100.0, 
+                config_path="config/parameters.json"):
         """
         Constructeur de la classe Hawk.
         
@@ -33,14 +36,27 @@ class Hawk(UAV):
             Rayon de voisinage Rnei pour les calculs de marge et densité (m)
             Utilisé pour définir Z2 et Z3 dans les équations (8) et (9)
         """
+        with open(config_path, 'r') as f:
+            params = json.load(f)
+        
+        hawk_params = params.get("hawk", {})
+        hawks_pos = params.get("inital_position").get("hawks")
+        if x is None or y is None or z is None:
+            hawk_positions = params.get("initial_positions", {}).get("hawks", [[0, 0, 0]])
+            # Prendre la première position disponible par défaut
+            default_pos = hawk_positions[0] if hawk_positions else [0, 0, 0]
+            x = x if x is not None else default_pos[0]
+            y = y if y is not None else default_pos[1]
+            z = z if z is not None else default_pos[2]
+
         # Appel du constructeur parent
         super().__init__(x, y, z, V, mu, phi)
         self.type = 'Hawk'
         self.index = -1 
         
         # Attributs de perception / sélection de cible
-        self.sensing_radius = sensing_radius      # Rs dans l'article
-        self.neighbor_radius = neighbor_radius    # Rnei dans l'article
+        self.sensing_radius = hawk_params.get("Rs")    
+        neighbor_radius = params.get("Rnei")
         
         
         # Gestion de la cible
@@ -79,6 +95,7 @@ class Hawk(UAV):
 
         return ar_pigeon_in_sensing[i_min]
     
+
     def potential_target_1(ar_pigeon,sensing_radius,hawk_coord):
 
         if ar_pigeon is None or len(ar_pigeon) == 0:
@@ -111,145 +128,147 @@ class Hawk(UAV):
         
 
 
-def potential_target_2(ar_pigeon, sensing_radius, hawk_coord, neighbor_radius):
-    """
-    Sélection selon le critère de marge (Margin Criterion).
-    Équation (8) : T²_pigeon = arg max_j∈Z1 (angle marginal)
-    
-    L'angle marginal = angle entre :
-      - Vecteur faucon→pigeon
-      - Vecteur de périphéralité q^j_pigeon
-    """
-    pigeon_in_range = Hawk.pigeon_in_sensing_radius(ar_pigeon, sensing_radius, hawk_coord)
-    
-    if pigeon_in_range is None or len(pigeon_in_range) == 0:
-        return None
-    
-    marginal_angles = np.zeros(len(pigeon_in_range))
-    hawk_coord = np.array(hawk_coord)
-    
-    for index, pigeon in enumerate(pigeon_in_range):
-        neighbor_pigeons = Hawk.find_neighboor_4_1_pigeon(pigeon, pigeon_in_range, neighbor_radius)
+    def potential_target_2(ar_pigeon, sensing_radius, hawk_coord, neighbor_radius):
+        """
+        Sélection selon le critère de marge (Margin Criterion).
+        Équation (8) : T²_pigeon = arg max_j∈Z1 (angle marginal)
+        
+        L'angle marginal = angle entre :
+        - Vecteur faucon→pigeon
+        - Vecteur de périphéralité q^j_pigeon
+        """
+        pigeon_in_range = Hawk.pigeon_in_sensing_radius(ar_pigeon, sensing_radius, hawk_coord)
+        
+        if pigeon_in_range is None or len(pigeon_in_range) == 0:
+            return None
+        
+        marginal_angles = np.zeros(len(pigeon_in_range))
+        hawk_coord = np.array(hawk_coord)
+        
+        for index, pigeon in enumerate(pigeon_in_range):
+            neighbor_pigeons = Hawk.find_neighboor_4_1_pigeon(pigeon, pigeon_in_range, neighbor_radius)
 
-        if neighbor_pigeons is None or len(neighbor_pigeons) == 0:
-            marginal_angles[index] = np.pi 
-            continue
-        
-
-        N_m = len(neighbor_pigeons)
-        q_pigeon_sum = np.zeros(3)
-        
-        for neighbor in neighbor_pigeons:  
-            neighbor_pos = np.array(neighbor.state[:3])
-            vector_hawk_to_neighbor = neighbor_pos - hawk_coord
-            norm = np.linalg.norm(vector_hawk_to_neighbor)
-            
-            if norm > 0:
-                unit_vector = vector_hawk_to_neighbor / norm
-                q_pigeon_sum += unit_vector
-        
-        q_pigeon = q_pigeon_sum / N_m
-        
-       
-        pigeon_pos = np.array(pigeon.state[:3])
-        vector_hawk_to_pigeon = pigeon_pos - hawk_coord
-        
-        
-        norm_hawk_pigeon = np.linalg.norm(vector_hawk_to_pigeon)
-        norm_q = np.linalg.norm(q_pigeon)
-        
-        if norm_hawk_pigeon > 0 and norm_q > 0:
-            
-            cos_angle = np.dot(vector_hawk_to_pigeon, q_pigeon) / (norm_hawk_pigeon * norm_q)
-            marginal_angles[index] = np.arccos(np.clip(cos_angle, -1, 1))
-        else:
-            marginal_angles[index] = 0
-    
-        
-        max_angle_index = np.argmax(marginal_angles)
-        target_2 = pigeon_in_range[max_angle_index]
-        
-        return target_2
-
-
-def potential_target_3(ar_pigeon, sensing_radius, hawk_coord, neighbor_radius):
-    """
-    Sélection selon le critère de densité (Density Criterion).
-    Équation (9) : T³_pigeon = arg max_j∈Z1 (score_densité)
-    
-    score_densité = ||p^j_pigeon - p^j_c_pigeon|| / (1 + exp(-N_d))
-    où p^j_c_pigeon = centre des voisins du pigeon j
-    """
-    pigeon_in_range = Hawk.pigeon_in_sensing_radius(ar_pigeon, sensing_radius, hawk_coord)
-    
-    if pigeon_in_range is None or len(pigeon_in_range) == 0:
-        return None
-    
-    density_scores = np.zeros(len(pigeon_in_range))
-    
-    for index, pigeon in enumerate(pigeon_in_range):
-        neighbor_pigeons = Hawk.find_neighboor_4_1_pigeon(pigeon, pigeon_in_range, neighbor_radius)
-        
-        # Si pas de voisins → score = 0 (pas dense)
-        if neighbor_pigeons is None or len(neighbor_pigeons) == 0:
-            density_scores[index] = 0.0
-            continue
-        
-        N_d = len(neighbor_pigeons)  # Nombre de voisins
-        
-        # Calculer le centre de position des voisins : p^j_c_pigeon
-        neighbor_positions = np.array([n.state[:3] for n in neighbor_pigeons])
-        center_position = np.mean(neighbor_positions, axis=0)
-        
-        # Distance du pigeon j au centre de ses voisins
-        pigeon_pos = np.array(pigeon.state[:3])
-        dist_to_center = np.linalg.norm(pigeon_pos - center_position)
-        
-        # Score de densité selon équation (9)
-        density_scores[index] = dist_to_center / (1 + np.exp(-N_d))
-    
-        # Sélectionner le pigeon avec le score de densité MAXIMUM
-        max_density_index = np.argmax(density_scores)
-        target_3 = pigeon_in_range[max_density_index]
-    
-        return target_3
-    
-
-    def eval(target1, target2, target3, hawk_coord, hawk_velocity, D_C):
-        L = [target1,target2,target3]
-        scores = []
-        for pigeon in L:
-            if pigeon is None:
-                scores.append(-np.inf)
+            if neighbor_pigeons is None or len(neighbor_pigeons) == 0:
+                marginal_angles[index] = np.pi 
                 continue
-            pigeon_coord = pigeon.state[:3]
-            pigeon_velocity = pigeon.velocity_vector
+            
 
-            r_vec = pigeon_coord - hawk_coord
-            r = np.linalg.norm(r_vec)
-
-            if np.linalg.norm(hawk_velocity) > 0 and r > 0:
-                cos_beta = np.dot(hawk_velocity, r_vec) / (np.linalg.norm(hawk_velocity) * r)
-                beta = np.arccos(np.clip(cos_beta, -1, 1))
+            N_m = len(neighbor_pigeons)
+            q_pigeon_sum = np.zeros(3)
+            
+            for neighbor in neighbor_pigeons:  
+                neighbor_pos = np.array(neighbor.state[:3])
+                vector_hawk_to_neighbor = neighbor_pos - hawk_coord
+                norm = np.linalg.norm(vector_hawk_to_neighbor)
+                
+                if norm > 0:
+                    unit_vector = vector_hawk_to_neighbor / norm
+                    q_pigeon_sum += unit_vector
+            
+            q_pigeon = q_pigeon_sum / N_m
+            
+        
+            pigeon_pos = np.array(pigeon.state[:3])
+            vector_hawk_to_pigeon = pigeon_pos - hawk_coord
+            
+            
+            norm_hawk_pigeon = np.linalg.norm(vector_hawk_to_pigeon)
+            norm_q = np.linalg.norm(q_pigeon)
+            
+            if norm_hawk_pigeon > 0 and norm_q > 0:
+                
+                cos_angle = np.dot(vector_hawk_to_pigeon, q_pigeon) / (norm_hawk_pigeon * norm_q)
+                marginal_angles[index] = np.arccos(np.clip(cos_angle, -1, 1))
             else:
-                beta = 0
+                marginal_angles[index] = 0
+        
+            
+            max_angle_index = np.argmax(marginal_angles)
+            target_2 = pigeon_in_range[max_angle_index]
+            
+            return target_2
 
 
-            if np.linalg.norm(pigeon_velocity) > 0 and r > 0:
-                cos_beta_p = np.dot(pigeon_velocity, r_vec) / (np.linalg.norm(pigeon_velocity) * r)
-                beta_p = np.arccos(np.clip(cos_beta_p, -1, 1))
-            else:
-                beta_p = 0
+    def potential_target_3(ar_pigeon, sensing_radius, hawk_coord, neighbor_radius):
+        """
+        Sélection selon le critère de densité (Density Criterion).
+        Équation (9) : T³_pigeon = arg max_j∈Z1 (score_densité)
+        
+        score_densité = ||p^j_pigeon - p^j_c_pigeon|| / (1 + exp(-N_d))
+        où p^j_c_pigeon = centre des voisins du pigeon j
+        """
+        pigeon_in_range = Hawk.pigeon_in_sensing_radius(ar_pigeon, sensing_radius, hawk_coord)
+        
+        if pigeon_in_range is None or len(pigeon_in_range) == 0:
+            return None
+        
+        density_scores = np.zeros(len(pigeon_in_range))
+        
+        for index, pigeon in enumerate(pigeon_in_range):
+            neighbor_pigeons = Hawk.find_neighboor_4_1_pigeon(pigeon, pigeon_in_range, neighbor_radius)
+            
+            # Si pas de voisins → score = 0 (pas dense)
+            if neighbor_pigeons is None or len(neighbor_pigeons) == 0:
+                density_scores[index] = 0.0
+                continue
+            
+            N_d = len(neighbor_pigeons)  # Nombre de voisins
+            
+            # Calculer le centre de position des voisins : p^j_c_pigeon
+            neighbor_positions = np.array([n.state[:3] for n in neighbor_pigeons])
+            center_position = np.mean(neighbor_positions, axis=0)
+            
+            # Distance du pigeon j au centre de ses voisins
+            pigeon_pos = np.array(pigeon.state[:3])
+            dist_to_center = np.linalg.norm(pigeon_pos - center_position)
+            
+            # Score de densité selon équation (9)
+            density_scores[index] = dist_to_center / (1 + np.exp(-N_d))
+        
+            # Sélectionner le pigeon avec le score de densité MAXIMUM
+            max_density_index = np.argmax(density_scores)
+            target_3 = pigeon_in_range[max_density_index]
+        
+            return target_3
+        
 
-            S_O = 1 - (beta + beta_p) / np.pi
-            S_R = np.exp(-(r - D_C)**2 / (2 * D_C**2))
-            S_OR = S_O * S_R
-            scores.append(S_OR)
+        def eval(target1, target2, target3, hawk_coord, hawk_velocity, D_C):
+            L = [target1,target2,target3]
+            if L == [None,None,None]:
+                return None
+            scores = []
+            for pigeon in L:
+                if pigeon is None:
+                    scores.append(-np.inf)
+                    continue
+                pigeon_coord = pigeon.state[:3]
+                pigeon_velocity = pigeon.velocity_vector
 
-        best_index = np.argmax(scores)
-        best_target = L[best_index]
+                r_vec = pigeon_coord - hawk_coord
+                r = np.linalg.norm(r_vec)
 
-        return best_target
+                if np.linalg.norm(hawk_velocity) > 0 and r > 0:
+                    cos_beta = np.dot(hawk_velocity, r_vec) / (np.linalg.norm(hawk_velocity) * r)
+                    beta = np.arccos(np.clip(cos_beta, -1, 1))
+                else:
+                    beta = 0
+
+
+                if np.linalg.norm(pigeon_velocity) > 0 and r > 0:
+                    cos_beta_p = np.dot(pigeon_velocity, r_vec) / (np.linalg.norm(pigeon_velocity) * r)
+                    beta_p = np.arccos(np.clip(cos_beta_p, -1, 1))
+                else:
+                    beta_p = 0
+
+                S_O = 1 - (beta + beta_p) / np.pi
+                S_R = np.exp(-(r - D_C)**2 / (2 * D_C**2))
+                S_OR = S_O * S_R
+                scores.append(S_OR)
+
+            best_index = np.argmax(scores)
+            best_target = L[best_index]
+
+            return best_target
 
 
     def control ( self, pigeon ):
