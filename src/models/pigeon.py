@@ -2,25 +2,25 @@ import numpy as np
 from models.uav import UAV
 
 class Pigeon(UAV) :
-  def __init__(self, initial_state, params):
-    super().__init__(initial_state, params)
+  def __init__(self, x, y, z, V, mu, phi, params):
+    super().__init__(x, y, z, V, mu, phi)
     self.k1 = params["k1"]   # attraction gain
     self.Re = params["Re"]   #pigeon's escaping safety radius
     self.Ra = params["Ra"]   #pigeon's avoiding collision safety radius
-  
+
   def compute_attack_accel(self, target_position):
     """
-    Equation (19) of the paper : 
+    Equation (19) of the paper :
     u_attack = k1 * (pT - pp) / ||pT - pp||
     """
-    
+
     p = self.state[0:3]
     direction = target_position - p
     dist = np.linalg.norm(direction)
-    
+
     if dist < 1e-6 :
       return np.zeros(3)
-  
+
     return self.k1 * direction / dist
 
 
@@ -117,3 +117,8 @@ class Pigeon(UAV) :
         u_avoid  = self.compute_avoid_accel(pigeons)
 
         return u_attack + u_escape + u_avoid
+
+
+def __repr__(self):
+    p = self.state[:3]
+    return f"Pigeon(pos=[{p[0]:.1f}, {p[1]:.1f}, {p[2]:.1f}])"
