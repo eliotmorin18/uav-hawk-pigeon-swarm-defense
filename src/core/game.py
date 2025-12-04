@@ -1,4 +1,5 @@
 import numpy as np
+from src.models.uav import apply_acceleration_controlc
 class Game():
   def __init__(self, hawks, pigeons, target, dt, capture_radius=10.0):
     self.hawks = hawks
@@ -60,14 +61,16 @@ class Game():
         self.hawks,
         self.pigeons
       )
-      pigeon.step(u, self.dt)
+      pigeon.apply_acceleration_control(u)
+      pigeon.step(self.dt)
       self.trajectories["pigeons"][i].append(pigeon.state[:3].copy())
 
     for i, hawk in enumerate(self.hawks):
       u = hawk.control(
         self.pigeons
       )
-      hawk.step(u, self.dt)
+      hawk.apply_acceleration_control(u)
+      hawk.step(self.dt)
       self.trajectories["hawks"][i].append(hawk.state[:3].copy())
 
     self.check_capture()
