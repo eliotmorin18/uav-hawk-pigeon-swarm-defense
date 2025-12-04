@@ -1,5 +1,6 @@
 import numpy as np
-from core.dynamics import rk4_step, dynamics  # Ton moteur physique
+from core.dynamics import rk4_step  # Ton moteur physique
+from core.converter import control_converter
 
 class UAV:
     """
@@ -13,10 +14,9 @@ class UAV:
 
         # Default controls
         self.controls = {
-            "Vdot": 0.0,
-            "mudot": 0.0,
-            "phidot": 0.0,
-            "gamma": 0.0
+            "nx": 0.0,     # longitudinal load factor
+            "nf": 0.0,     # normal load factor
+            "gamma": 0.0   # bank angle
         }
 
     # ----------- Properties -----------
@@ -51,6 +51,27 @@ class UAV:
         vy = V * np.cos(mu) * np.sin(phi)
         vz = V * np.sin(mu)
         return np.array([vx, vy, vz])
+
+
+    def apply_acceleration_control(self, u):
+        """
+        Convert a 2nd-order acceleration vector u = [ux, uy, uz]
+        into the physical control laws (nx, nf, gamma).
+
+        This matches exactly the conversion described in the
+        Hawk–Pigeon Game paper (equations (3)-(6)).
+        """
+        u = np.asarray(u, dtype=float)
+        assert u.shape == (3,), "u must be a vector [ux, uy, uz]"
+
+        ux, uy, uz = u
+        nx, nf, gamma = control_converter([ux, uy, uz], self.mu, self.phi)
+
+        # Update control dictionary for rk4_step()
+        self.controls["nx"] = nx
+        self.controls["nf"] = nf
+        self.controls["gamma"] = gamma
+
 
     # ----------- Simulation step -----------
 
