@@ -25,7 +25,7 @@ def dynamics(state, controls) :
     z_dot = V * np.sin(mu)
 
     V_dot = g * (nx - np.sin(mu))
-    mu_dot = g * (ny * np.cos(gamma) - np.cos(mu)) / max(V, 1e-6)
+    mu_dot = g * (nf * np.cos(gamma) - np.cos(mu)) / max(V, 1e-6)
 
     denom = V * np.cos(mu)
     if abs(denom) < 1e-6:
@@ -34,7 +34,7 @@ def dynamics(state, controls) :
         phi_dot = g * nf * np.sin(gamma) / denom
 
     return np.array([x_dot, y_dot, z_dot, V_dot, mu_dot, phi_dot])
-  
+
 def rk4_step(state, controls, dt):
     k1 = dynamics(state, controls)
     k2 = dynamics(state + 0.5*dt*k1, controls)
