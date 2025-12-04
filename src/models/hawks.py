@@ -40,7 +40,7 @@ class Hawk(UAV):
             params = json.load(f)
         
         hawk_params = params.get("hawk", {})
-        hawks_pos = params.get("inital_position").get("hawks")
+        hawks_pos = params.get("initial_positions").get("hawks")
         if x is None or y is None or z is None:
             hawk_positions = params.get("initial_positions", {}).get("hawks", [[0, 0, 0]])
             # Prendre la première position disponible par défaut
@@ -232,43 +232,43 @@ class Hawk(UAV):
             return target_3
         
 
-        def eval(target1, target2, target3, hawk_coord, hawk_velocity, D_C):
-            L = [target1,target2,target3]
-            if L == [None,None,None]:
-                return None
-            scores = []
-            for pigeon in L:
-                if pigeon is None:
-                    scores.append(-np.inf)
-                    continue
-                pigeon_coord = pigeon.state[:3]
-                pigeon_velocity = pigeon.velocity_vector
+    def eval(target1, target2, target3, hawk_coord, hawk_velocity, D_C):
+        L = [target1,target2,target3]
+        if L == [None,None,None]:
+            return None
+        scores = []
+        for pigeon in L:
+            if pigeon is None:
+                scores.append(-np.inf)
+                continue
+            pigeon_coord = pigeon.state[:3]
+            pigeon_velocity = pigeon.velocity_vector
 
-                r_vec = pigeon_coord - hawk_coord
-                r = np.linalg.norm(r_vec)
+            r_vec = pigeon_coord - hawk_coord
+            r = np.linalg.norm(r_vec)
 
-                if np.linalg.norm(hawk_velocity) > 0 and r > 0:
-                    cos_beta = np.dot(hawk_velocity, r_vec) / (np.linalg.norm(hawk_velocity) * r)
-                    beta = np.arccos(np.clip(cos_beta, -1, 1))
-                else:
-                    beta = 0
+            if np.linalg.norm(hawk_velocity) > 0 and r > 0:
+                cos_beta = np.dot(hawk_velocity, r_vec) / (np.linalg.norm(hawk_velocity) * r)
+                beta = np.arccos(np.clip(cos_beta, -1, 1))
+            else:
+                beta = 0
 
 
-                if np.linalg.norm(pigeon_velocity) > 0 and r > 0:
-                    cos_beta_p = np.dot(pigeon_velocity, r_vec) / (np.linalg.norm(pigeon_velocity) * r)
-                    beta_p = np.arccos(np.clip(cos_beta_p, -1, 1))
-                else:
-                    beta_p = 0
+            if np.linalg.norm(pigeon_velocity) > 0 and r > 0:
+                cos_beta_p = np.dot(pigeon_velocity, r_vec) / (np.linalg.norm(pigeon_velocity) * r)
+                beta_p = np.arccos(np.clip(cos_beta_p, -1, 1))
+            else:
+                beta_p = 0
 
-                S_O = 1 - (beta + beta_p) / np.pi
-                S_R = np.exp(-(r - D_C)**2 / (2 * D_C**2))
-                S_OR = S_O * S_R
-                scores.append(S_OR)
+            S_O = 1 - (beta + beta_p) / np.pi
+            S_R = np.exp(-(r - D_C)**2 / (2 * D_C**2))
+            S_OR = S_O * S_R
+            scores.append(S_OR)
 
-            best_index = np.argmax(scores)
-            best_target = L[best_index]
+        best_index = np.argmax(scores)
+        best_target = L[best_index]
 
-            return best_target
+        return best_target
 
 
     def control ( self, pigeon ):
@@ -309,7 +309,7 @@ class Hawk(UAV):
         # ----- β vectoriel -----
         beta_vec = beta_scalar * beta_direction
 
-        beta_norm = np.norm(beta_vec)
+        beta_norm = np.linalg.norm(beta_vec)
         K_PN = np.exp(-beta_norm)
 
         K_PP = 9.81 * beta_norm
