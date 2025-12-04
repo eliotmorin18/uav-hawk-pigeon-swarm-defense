@@ -13,33 +13,11 @@ def dynamics(state, controls) :
     """
 
     x, y, z, V, mu, phi = state
-    gamma = controls.get('gamma', 0.0)
-    
-    # If provided time-derivs, convert to load factors
-    if 'Vdot' in controls and 'mudot' in controls and 'phidot' in controls:
-        Vdot = controls['Vdot']
-        mudot = controls['mudot']
-        phidot = controls['phidot']
 
-        nx = Vdot / g + np.sin(mu)
-
-        # protect cos(gamma) near zero
-        cosg = np.cos(gamma)
-        if abs(cosg) < 1e-6:
-            ny = np.sign(cosg) * 1e6  # large value - indicates singular control request
-        else:
-            ny = (mudot * V / g + np.cos(mu)) / cosg
-
-        sing = np.sin(gamma)
-        if abs(sing) < 1e-6:
-            nf = np.sign(sing) * 1e6
-        else:
-            nf = (phidot * V * np.cos(mu)) / (g * sing)
-
-    else:
-        nx = controls.get('nx', 0.0)
-        ny = controls.get('ny', 0.0)
-        nf = controls.get('nf', 0.0)
+    # Load factors and bank angle
+    nx = controls.get("nx", 0.0)
+    nf = controls.get("nf", 0.0)
+    gamma = controls.get("gamma", 0.0)
 
     # State derivatives
     x_dot = V * np.cos(mu) * np.cos(phi)
