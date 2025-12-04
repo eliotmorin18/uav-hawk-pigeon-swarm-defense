@@ -15,6 +15,8 @@ class Pigeon(UAV) :
     """
 
     p = self.state[0:3]
+    target_position = np.asarray(target_position, dtype=float)
+
     direction = target_position - p
     dist = np.linalg.norm(direction)
 
@@ -118,7 +120,6 @@ class Pigeon(UAV) :
 
         return u_attack + u_escape + u_avoid
 
-
-def __repr__(self):
-    p = self.state[:3]
-    return f"Pigeon(pos=[{p[0]:.1f}, {p[1]:.1f}, {p[2]:.1f}])"
+  def __repr__(self):
+      p = self.state[:3]
+      return f"Pigeon(pos=[{p[0]:.1f}, {p[1]:.1f}, {p[2]:.1f}])"
