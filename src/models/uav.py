@@ -19,6 +19,14 @@ class UAV:
             "gamma": 0.0   # bank angle
         }
 
+        p_hawk = self.state[:3]
+        v_hawk = self.velocity_vector
+        print(f"[INIT] p_hawk = {p_hawk}")
+        print(f"[INIT] v_hawk = {v_hawk}")
+        print(f"[INIT] V (speed) = {self.V}")
+        print(f"[INIT] mu = {np.degrees(self.mu)}°")
+        print(f"[INIT] phi = {np.degrees(self.phi)}°")
+
     # ----------- Properties -----------
 
     @property

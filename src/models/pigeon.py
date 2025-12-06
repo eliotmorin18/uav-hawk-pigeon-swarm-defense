@@ -22,8 +22,9 @@ class Pigeon(UAV) :
 
     if dist < 1e-6 :
       return np.zeros(3)
-
-    return self.k1 * direction / dist
+    
+    u_attack = self.k1 * direction / dist
+    return u_attack
 
 
   def compute_escape_accel(self, hawks):
@@ -111,14 +112,24 @@ class Pigeon(UAV) :
         k3 = (Ra - dist) / Ra
         uavoid += k3 * direction / dist
 
+      avoid_mag = np.linalg.norm(uavoid)
+      if avoid_mag > 50.0:
+        uavoid = uavoid * (50.0 / avoid_mag)
+
     return uavoid
 
   def control(self, target_position, hawks, pigeons):
         u_attack = self.compute_attack_accel(target_position)
         u_escape = self.compute_escape_accel(hawks)
         u_avoid  = self.compute_avoid_accel(pigeons)
+        u_total = u_attack + u_escape + u_avoid
 
-        return u_attack + u_escape + u_avoid
+        total_mag = np.linalg.norm(u_total)
+        max_total = 50.0
+        if total_mag > max_total:
+          u_total = u_total * (max_total / total_mag)
+    
+        return u_total
 
   def __repr__(self):
       p = self.state[:3]

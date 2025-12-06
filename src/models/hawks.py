@@ -63,7 +63,7 @@ class Hawk(UAV):
             if p is pigeon :
                 continue
 
-            distance = np.linalg.norm(p.state[:3] - pigeon_pos) <= neighbor_radius
+            distance = np.linalg.norm(p.state[:3] - pigeon_pos) 
             if distance < neighbor_radius:
                 neigh.append(p)
 
@@ -122,10 +122,10 @@ class Hawk(UAV):
             cos_angle = np.dot(vector_hawk_to_pigeon, q_pigeon) / (norm_hawk_pigeon * norm_q)
             marginal_angles[index] = np.arccos(np.clip(cos_angle, -1, 1))
 
-            max_angle_index = np.argmax(marginal_angles)
-            margin_target = pigeon_in_range[max_angle_index]
+        max_angle_index = np.argmax(marginal_angles)
+        margin_target = pigeon_in_range[max_angle_index]
 
-            return margin_target
+        return margin_target
 
 
     def density_target(pigeons, hawk_pos, sensing_radius, neighbor_radius):
@@ -163,10 +163,10 @@ class Hawk(UAV):
             density_scores[index] = dist_center / (1 + np.exp(-N_d))
 
             # Sélectionner le pigeon avec le score de densité MAXIMUM
-            max_density_index = np.argmax(density_scores)
-            density_target = pigeon_in_range[max_density_index]
+        max_density_index = np.argmax(density_scores)
+        density_target = pigeon_in_range[max_density_index]
 
-            return density_target
+        return density_target
 
 
 
@@ -179,11 +179,11 @@ class Hawk(UAV):
 
         # Compute T1, T2, T3
         T1 = Hawk.closest_pigeon(
-            Hawk.pigeons_in_range(pigeons, self.sensing_radius, hawk_pos),
+            Hawk.pigeon_in_sensing_radius(pigeons, self.sensing_radius, hawk_pos),
             hawk_pos
         )
-        T2 = Hawk.margin_target(pigeons, hawk_pos, self.neighbor_radius, self.sensing_radius)
-        T3 = Hawk.density_target(pigeons, hawk_pos, self.neighbor_radius, self.sensing_radius)
+        T2 = Hawk.margin_target(pigeons, hawk_pos, self.sensing_radius, self.neighbor_radius)
+        T3 = Hawk.density_target(pigeons, hawk_pos, self.sensing_radius, self.neighbor_radius)
 
         candidates = [T1, T2, T3]
 
@@ -220,47 +220,54 @@ class Hawk(UAV):
         return best
 
 
-    def control ( self, pigeon ):
+    def control(self, pigeon):
         """Return acceleration u according to PN + PP pursuit law."""
-
+        
         p_hawk = np.array(self.state[:3])
         p_pigeon = np.array(pigeon.state[:3])
-
+        
         v_hawk = np.array(self.velocity_vector)
         v_pigeon = np.array(pigeon.velocity_vector)
-
+        
         r = p_pigeon - p_hawk
         nr = np.linalg.norm(r)
+        
 
         omega = np.cross(r, (v_pigeon - v_hawk)) / (nr**2 + 1e-9)
 
-        # Norme vitesse hawk
+
+        
         v_hawk_norm = np.linalg.norm(v_hawk)
         if v_hawk_norm < 1e-9 or nr < 1e-9:
             return np.zeros(3)
-
+        
         cos_beta = np.dot(r, v_hawk) / ((nr * v_hawk_norm) + 1e-9)
-        beta_scalar = np.arccos(cos_beta)
 
+        beta_scalar = np.arccos(np.clip(cos_beta, -1, 1))
+
+        
         cross_r_v = np.cross(r, v_hawk)
         cross_norm = np.linalg.norm(cross_r_v)
-
+        
         if cross_norm > 1e-9:
             beta_direction = cross_r_v / cross_norm
         else:
             beta_direction = np.zeros(3)
-
+        
         beta_vec = beta_scalar * beta_direction
-        beta_norm = np.linalg.norm(beta_vec)
-
+        beta_norm = beta_scalar
+        
         K_PN = np.exp(-beta_norm)
         K_PP = 9.81 * beta_norm
 
+        
         u_PN = K_PN * np.cross(omega, v_hawk)
-        u_PP = -K_PP * np.cross(omega, v_hawk)
+        u_PP = K_PP * np.cross(beta_vec, v_hawk)
 
-        u = u_PN + u_PP
-
+        
+        u = u_PN - u_PP 
+        dot_product = np.dot(u, r)
+        
         return u
 
 
