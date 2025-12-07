@@ -88,12 +88,16 @@ class Game():
     for i, hawk in enumerate(self.hawks):
       # Chercher une cible parmi les pigeons vivants
       alive_pigeons = [p for pi, p in enumerate(self.pigeons) if self.pigeon_alive[pi]]
-      
-      if alive_pigeons:
+
+      if len(alive_pigeons) !=0 :
         hawk.current_target = hawk.choose_target(alive_pigeons)
         u = hawk.control(hawk.current_target)
       else:
         u = np.zeros(3)
+
+      if len( alive_pigeons ) == 0:
+        print(f"All pigeons captured at t={self.time:.2f}s")
+        return "ALL_PIGEONS_CAPTURED"
 
       hawk.apply_acceleration_control(u)
       hawk.step(self.dt)
@@ -104,10 +108,6 @@ class Game():
       if self.check_target_capture():
         print(f"one pigeon reached the target at t={self.time:.2f}s")
         return "TARGET_CAPTURED"
-
-      if sum(self.pigeon_alive) == 0:
-        print(f"All pigeons captured at t={self.time:.2f}s")
-        return "ALL_PIGEONS_CAPTURED"
 
       self.time += self.dt
   
