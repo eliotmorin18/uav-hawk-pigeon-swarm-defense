@@ -44,6 +44,9 @@ class Hawk(UAV):
     def closest_pigeon(pigeons, hawk_pos):
         """Proximity Criterion (Eq. 7)"""
 
+        if len(pigeons) == 0:
+            return None
+
         hawk_pos = np.array (hawk_pos)
         positions = np.array([pigeon.state[:3] for pigeon in pigeons])
         distances = np.linalg.norm(hawk_pos - positions, axis=1)
