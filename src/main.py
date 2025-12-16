@@ -99,6 +99,7 @@ def main():
     # Charger les paramètres
     params = load_parameters("config/parameters.json")
     sim_params = params["simulation"]
+    rules_params = params["rules"]
     
     # Initialiser les pigeons et hawks
     pigeons = initialize_pigeons(params)
@@ -127,7 +128,7 @@ def main():
         pigeons=pigeons,
         target=target,
         dt=sim_params["dt"],
-        capture_radius=10.0
+        capture_radius= rules_params["capture_radius"]
     )
     
     # Lancer la simulation
@@ -143,7 +144,6 @@ def main():
         print("=" * 60)
         print(f"\nRésultats finaux:")
         print(f"  Pigeons restants: {sum(game.pigeon_alive)}/{len(pigeons)}")
-        print(f"  Hawks restants: {sum(game.hawk_alive)}/{len(hawks)}")
         print(f"  Temps écoulé: {game.time:.2f}s")
         
         # Afficher les positions finales
@@ -152,8 +152,7 @@ def main():
             if game.pigeon_alive[i]:
                 print(f"  Pigeon {i}: {p.state[:3]}")
         for i, h in enumerate(hawks):
-            if game.hawk_alive[i]:
-                print(f"  Hawk {i}: {h.state[:3]}")
+            print(f"  Hawk {i}: {h.state[:3]}")
         
         # Sauvegarder les trajectoires et positions pour affichage
         trajectoires_data = {
