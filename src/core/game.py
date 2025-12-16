@@ -1,7 +1,7 @@
 import numpy as np
 
 class Game():
-  def __init__(self, hawks, pigeons, target, dt, capture_radius=10.0):
+  def __init__(self, hawks, pigeons, target, dt, capture_radius):
     self.hawks = hawks
     self.pigeons = pigeons
     self.target = target
@@ -16,14 +16,10 @@ class Game():
 
     # Statut : 1 = actif, 0 = capturé
     self.pigeon_alive = [1] * len(pigeons)
-    self.hawk_alive = [1] * len(hawks)
-    self.debug_step_count = 0
 
 
   def check_capture(self):
       for hi, hawk in enumerate(self.hawks):
-          if not self.hawk_alive[hi]:
-              continue
 
           hp = hawk.state[:3]
 
@@ -74,8 +70,12 @@ class Game():
   """
 
   def update(self):
-    self.debug_step_count += 1
-    for i, pigeon in enumerate(self.pigeons):
+
+    # ---------- 1. MOVE PIGEONS ----------
+    for pi, pigeon in enumerate(self.pigeons):
+      if not self.pigeon_alive[pi]:
+            continue
+
       u = pigeon.control(
         self.target,
         self.hawks,
@@ -83,41 +83,45 @@ class Game():
       )
       pigeon.apply_acceleration_control(u)
       pigeon.step(self.dt)
-      self.trajectories["pigeons"][i].append(pigeon.state[:3].copy())
+      self.trajectories["pigeons"][pi].append(pigeon.state[:3].copy())
 
-    for i, hawk in enumerate(self.hawks):
-      # Chercher une cible parmi les pigeons vivants
-      alive_pigeons = [p for pi, p in enumerate(self.pigeons) if self.pigeon_alive[pi]]
+    # ---------- 2. MOVE HAWKS ----------
+    alive_pigeons = [p for pi, p in enumerate(self.pigeons) if self.pigeon_alive[pi]]
+    for hi, hawk in enumerate(self.hawks):
 
-      if len(alive_pigeons) !=0 :
+      # Check if there are at least one visible pigeons in the Rs
+      visible_pigeons = [
+        p for p in alive_pigeons
+        if np.linalg.norm(p.state[:3] - hawk.state[:3]) <= hawk.sensing_radius
+      ]
+
+      if visible_pigeons :
         hawk.current_target = hawk.choose_target(alive_pigeons)
         u = hawk.control(hawk.current_target)
       else:
+        hawk.current_target = None
         u = np.zeros(3)
-
-      if len( alive_pigeons ) == 0:
-        print(f"All pigeons captured at t={self.time:.2f}s")
-        return "ALL_PIGEONS_CAPTURED"
 
       hawk.apply_acceleration_control(u)
       hawk.step(self.dt)
-      self.trajectories["hawks"][i].append(hawk.state[:3].copy())
+      self.trajectories["hawks"][hi].append(hawk.state[:3].copy())
 
-      self.check_capture()
+    # ---------- 3. CHECK CAPTURES ----------
+    self.check_capture()
 
-      if self.check_target_capture():
-        print(f"one pigeon reached the target at t={self.time:.2f}s")
+    # ---------- 4. TERMINAL CONDITIONS ----------
+    if all(alive == 0 for alive in self.pigeon_alive):
+        print(f"[{self.time:.2f}s] All pigeons have been captured.")
+        return "ALL_PIGEONS_CAPTURED"
+
+    if self.check_target_capture():
+        print(f"[{self.time:.2f}s] A pigeon reached the target.")
         return "TARGET_CAPTURED"
 
-      self.time += self.dt
-  
-      if hawk.current_target:
-        target_pos = hawk.current_target.state[:3]
-        dist = np.linalg.norm(hawk.state[:3] - target_pos)
-        direction_to_target = (target_pos - hawk.state[:3]) / np.linalg.norm(target_pos - hawk.state[:3])
-
+    # ---------- 5. TIME UPDATE ----------
     self.time += self.dt
     return None
+
 
   def run(self, T):
       steps = int(T / self.dt)
@@ -125,14 +129,14 @@ class Game():
           status = self.update()
 
           
-          if step_num <=50:
-              print(f"[STEP {step_num}] hawk pos = {self.hawks[0].state[:3]}, distance = {np.linalg.norm(self.hawks[0].state[:3] - self.pigeons[0].state[:3]):.1f}m")
-              print(f"[STEP {step_num}] pigeon pos = {self.pigeons[0].state[:3]}, distancetarget = {np.linalg.norm(self.pigeons[0].state[:3] - self.target[:3]):.1f}m")
-              print(f"  V = {self.hawks[0].V:.2f} m/s")
-              print(f"  mu = {np.degrees(self.hawks[0].mu):.2f}°")
-              print(f"  phi = {np.degrees(self.hawks[0].phi):.2f}°")
-              print(f"  v_velocity = {self.hawks[0].velocity_vector}")
-              print(f"  controls: nx={self.hawks[0].controls['nx']:.3f}, nf={self.hawks[0].controls['nf']:.3f}, gamma={np.degrees(self.hawks[0].controls['gamma']):.2f}°")
+      #if step_num <=50:
+          print(f"[STEP {step_num}] hawk pos = {self.hawks[0].state[:3]}, distance = {np.linalg.norm(self.hawks[0].state[:3] - self.pigeons[0].state[:3]):.1f}m")
+          print(f"[STEP {step_num}] pigeon pos = {self.pigeons[0].state[:3]}, distancetarget = {np.linalg.norm(self.pigeons[0].state[:3] - self.target[:3]):.1f}m")
+          print(f"  V = {self.hawks[0].V:.2f} m/s")
+          print(f"  mu = {np.degrees(self.hawks[0].mu):.2f}°")
+          print(f"  phi = {np.degrees(self.hawks[0].phi):.2f}°")
+          print(f"  v_velocity = {self.hawks[0].velocity_vector}")
+          print(f"  controls: nx={self.hawks[0].controls['nx']:.3f}, nf={self.hawks[0].controls['nf']:.3f}, gamma={np.degrees(self.hawks[0].controls['gamma']):.2f}°")
 
           if status is not None:
               return status
