@@ -17,9 +17,12 @@ class Hawk(UAV):
         super().__init__(x, y, z, V, mu, phi)
 
         self.type = 'Hawk'
-        self.sensing_radius = sensing_radius
-        self.neighbor_radius = neighbor_radius
-        self.capture_range = capture_range
+        self.sensing_radius = sensing_radius    #Rs
+        self.neighbor_radius = neighbor_radius  #Rnei
+        self.capture_range = capture_range      #DC
+
+        self.t_go_blend = 1.0
+        self.t_go_max = 3.0
 
         self.current_target = None
         self.target_locked = False
@@ -171,6 +174,67 @@ class Hawk(UAV):
 
         return density_target
 
+    def compute_time_to_go(self, targeted_pigeon) :
+        """
+        Estimate time-to-go (t_go) until interception under
+        constant-velocity assumption.
+        """
+
+        p_h = np.array(self.state[:3])
+        p_p = np.array(targeted_pigeon.state[:3])
+
+        v_h = np.array(self.velocity_vector)
+        v_p = np.array(targeted_pigeon.velocity_vector)
+
+        r_vec = p_p - p_h
+        r = np.linalg.norm(r_vec)
+
+        if r <= self.capture_range:
+            return 0.0
+
+        r_hat = r_vec / (r + 1e-9)
+        v_rel = v_p - v_h
+        V_c = - np.dot(r_hat, v_rel)
+
+        if V_c <= 1e-3:
+            return self.t_go_max
+
+        t_go = (r_hat - self.capture_range) / V_c
+
+        return t_go
+
+
+    def predict_pigeon_position(self, targeted_pigeon, t_go):
+        """
+        Predict pigeon position after t_go seconds
+        using constant-velocity model.
+        """
+
+        p_p = np.array(targeted_pigeon.state[:3])
+        v_p = np.array(targeted_pigeon.velocity_vector)
+
+        # Clamp time-to-go for safety
+        t = np.clip(t_go, 0.0, self.t_go_max)
+
+        p_pred = p_p + v_p * t
+
+        return p_pred
+
+
+    def get_effective_target_position(self, targeted_pigeon, p_pred, t_go):
+        """
+        Blend current and predicted position for smooth guidance.
+        """
+
+        p_now = np.array(targeted_pigeon.state[:3])
+
+        # Blend factor grows with time-to-go
+        alpha = np.clip(t_go / self.t_go_blend, 0.0, 1.0)
+
+        p_target = (1 - alpha) * p_now + alpha * p_pred
+
+        return p_target
+
 
 
     def choose_target(self, pigeons):
@@ -225,52 +289,50 @@ class Hawk(UAV):
 
     def control(self, pigeon):
         """Return acceleration u according to PN + PP pursuit law."""
-        
+
         p_hawk = np.array(self.state[:3])
         p_pigeon = np.array(pigeon.state[:3])
-        
+
         v_hawk = np.array(self.velocity_vector)
         v_pigeon = np.array(pigeon.velocity_vector)
-        
-        r = p_pigeon - p_hawk
+
+        t_go = self.compute_time_to_go(pigeon)
+
+        p_pred = self.predict_pigeon_position(pigeon, t_go)
+
+        p_aim= self.get_effective_target_position(pigeon, p_pred, t_go)
+
+        r = p_aim - p_hawk
         nr = np.linalg.norm(r)
-        
 
         omega = np.cross(r, (v_pigeon - v_hawk)) / (nr**2 + 1e-9)
 
-
-        
         v_hawk_norm = np.linalg.norm(v_hawk)
         if v_hawk_norm < 1e-9 or nr < 1e-9:
             return np.zeros(3)
-        
-        cos_beta = np.dot(r, v_hawk) / ((nr * v_hawk_norm) + 1e-9)
 
+        cos_beta = np.dot(r, v_hawk) / ((nr * v_hawk_norm) + 1e-9)
         beta_scalar = np.arccos(np.clip(cos_beta, -1, 1))
 
-        
         cross_r_v = np.cross(r, v_hawk)
         cross_norm = np.linalg.norm(cross_r_v)
-        
+
         if cross_norm > 1e-9:
             beta_direction = cross_r_v / cross_norm
         else:
             beta_direction = np.zeros(3)
-        
+
         beta_vec = beta_scalar * beta_direction
         beta_norm = beta_scalar
-        
+
         K_PN = np.exp(-beta_norm)
         K_PP = 9.81 * beta_norm
 
-        
         u_PN = K_PN * np.cross(omega, v_hawk)
         u_PP = K_PP * np.cross(beta_vec, v_hawk)
 
-        
-        u = u_PN - u_PP 
-        dot_product = np.dot(u, r)
-        
+        u = u_PN - u_PP
+
         return u
 
 
