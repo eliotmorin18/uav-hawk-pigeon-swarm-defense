@@ -192,16 +192,39 @@ class Hawk(UAV):
         if r <= self.capture_range:
             return 0.0
 
-        r_hat = r_vec / (r + 1e-9)
         v_rel = v_p - v_h
-        V_c = - np.dot(r_hat, v_rel)
+        V_c = - np.dot(r, v_rel)
 
         if V_c <= 1e-3:
             return self.t_go_max
 
-        t_go = (r_hat - self.capture_range) / V_c
+        t_go = (r - self.capture_range) / V_c
 
         return t_go
+    
+    def compute_intercept_time(self, pigeon):
+        p_h = np.array(self.state[:3])
+        p_p = np.array(pigeon.state[:3])
+        v_p = np.array(pigeon.velocity_vector)
+        V_h = np.linalg.norm(self.velocity_vector)
+
+        r = p_p - p_h
+
+        a = np.dot(v_p, v_p) - V_h**2
+        b = 2 * np.dot(r, v_p)
+        c = np.dot(r, r)
+
+        disc = b*b - 4*a*c
+        if disc < 0:
+            return None
+
+        t1 = (-b - np.sqrt(disc)) / (2*a)
+        t2 = (-b + np.sqrt(disc)) / (2*a)
+
+        t_candidates = [t for t in (t1, t2) if t > 0]
+
+        return min(t_candidates) if t_candidates else None
+
 
 
     def predict_pigeon_position(self, targeted_pigeon, t_go):
@@ -296,11 +319,20 @@ class Hawk(UAV):
         v_hawk = np.array(self.velocity_vector)
         v_pigeon = np.array(pigeon.velocity_vector)
 
-        t_go = self.compute_time_to_go(pigeon)
+#        t_go = self.compute_time_to_go(pigeon)
 
-        p_pred = self.predict_pigeon_position(pigeon, t_go)
+#        p_pred = self.predict_pigeon_position(pigeon, t_go)
 
-        p_aim= self.get_effective_target_position(pigeon, p_pred, t_go)
+#        p_aim= self.get_effective_target_position(pigeon, p_pred, t_go)
+
+        t_int = self.compute_intercept_time(pigeon)
+        if t_int is not None:
+            p_aim = p_pigeon + v_pigeon * t_int
+        else:
+            p_aim = p_pigeon
+
+
+        
 
         r = p_aim - p_hawk
         nr = np.linalg.norm(r)
