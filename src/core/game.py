@@ -17,6 +17,9 @@ class Game():
     # Statut : 1 = actif, 0 = capturé
     self.pigeon_alive = [1] * len(pigeons)
 
+    # hawk_index -> pigeon_index
+    self.current_assignments = {}  
+
 
   def check_capture(self):
       for hi, hawk in enumerate(self.hawks):
@@ -69,6 +72,110 @@ class Game():
             print(f"  Hawk {hi}: no target")
   """
 
+  def compute_pigeon_danger(self):
+    pigeon_danger = {}
+    for pi, pigeon in enumerate(self.pigeons):
+      if not self.pigeon_alive[pi]:
+        continue
+
+      pp = pigeon.state[:3]
+      t_target = np.linalg.norm(pp - self.target) / (pigeon.V + 1e-9)
+
+      intercept_candidates = []
+
+      for hi, hawk in enumerate(self.hawks):
+
+        ph = hawk.state[:3]
+        distance = np.linalg.norm(pp - ph) - self.capture_radius
+
+        if distance <= 0.0:
+          intercept_candidates = [(0.0, hi)]
+          break
+
+        Vh = hawk.V
+        Vp = pigeon.V
+        V_rel = Vh - Vp
+
+        if V_rel <= 1e-6:
+          continue
+
+        t_intercept = distance / V_rel
+        intercept_candidates.append((t_intercept, hi))
+
+      if intercept_candidates:
+        intercept_candidates.sort(key=lambda x: x[0])
+        t_min = intercept_candidates[0][0]
+        hawks_ranked = [hi for _, hi in intercept_candidates]
+      else :
+        t_min = np.inf
+        hawks_ranked = []
+
+      delta_t = t_min - t_target
+      danger = (1.0 / (t_target + 1e-6)) * (1.0 / (1.0 + np.exp(delta_t / 2.0)))
+
+      pigeon_danger[pi] = {
+        "danger" : danger,
+        "t_intercept" : t_min,
+        "best_hawks" : hawks_ranked
+      }
+
+    return pigeon_danger
+
+  def rank_pigeons_by_danger(self, pigeon_danger):
+      """
+      Return list of pigeon indices sorted by decreasing danger.
+      """
+      return sorted(
+          pigeon_danger.keys(),
+          key=lambda pi: pigeon_danger[pi]["danger"],
+          reverse=True
+      )
+
+  def assign_hawks_to_pigeons(self, ranked_pigeons, pigeon_danger, hysteresis_ratio = 0.25):
+    """
+    Assign hawks to pigeons based on danger ranking.
+    Returns a dict: hawk_index -> pigeon_index
+    """
+
+    assignments = {}
+
+    available_hawks = set(range(len(self.hawks)))
+
+    # keep the former targets if they are available
+    for hi, pi in self.current_assignments.items():
+        if hi not in available_hawks:
+            continue
+        if pi not in pigeon_danger:
+            continue
+
+        assignments[hi] = pi
+        available_hawks.remove(hi)
+
+    # New allocation with fallback + hysteresis
+    for pi in ranked_pigeons:
+      if not available_hawks:
+        break
+
+      for hi in pigeon_danger[pi]["best_hawks"]:
+        if hi not in available_hawks:
+                continue
+
+        # Hysteresis : we are comparing with the current target
+        if hi in self.current_assignments:
+          old_pi = self.current_assignments[hi]
+          old_danger = pigeon_danger.get(old_pi, {}).get("danger", 0.0)
+          new_danger = pigeon_danger[pi]["danger"]
+
+          if new_danger < old_danger * (1.0 + hysteresis_ratio):
+            continue
+
+        assignments[hi] = pi
+        available_hawks.remove(hi)
+        break  # pigeon assigned, next pigeon
+
+    self.current_assignments = assignments
+    return assignments
+
   def update(self):
 
     # ---------- 1. MOVE PIGEONS ----------
@@ -85,21 +192,25 @@ class Game():
       pigeon.step(self.dt)
       self.trajectories["pigeons"][pi].append(pigeon.state[:3].copy())
 
-    # ---------- 2. MOVE HAWKS ----------
-    alive_pigeons = [p for pi, p in enumerate(self.pigeons) if self.pigeon_alive[pi]]
+    # ---------- 2.a GLOBAL HAWK–PIGEON ASSIGNMENT ----------
+    pigeon_info = self.compute_pigeon_danger()
+    ranked_pigeons = self.rank_pigeons_by_danger(pigeon_info)
+    assignments = self.assign_hawks_to_pigeons(ranked_pigeons, pigeon_info)
+
     for hi, hawk in enumerate(self.hawks):
-
-      # Check if there are at least one visible pigeons in the Rs
-      visible_pigeons = [
-        p for p in alive_pigeons
-        if np.linalg.norm(p.state[:3] - hawk.state[:3]) <= hawk.sensing_radius
-      ]
-
-      if visible_pigeons :
-        hawk.current_target = hawk.choose_target(alive_pigeons)
-        u = hawk.control(hawk.current_target)
+      if hi in assignments:
+          pi = assignments[hi]
+          hawk.set_target(self.pigeons[pi])
       else:
-        hawk.current_target = None
+          hawk.set_target(None)
+
+    # ---------- 2. MOVE HAWKS ----------
+    for hi, hawk in enumerate(self.hawks):
+      target = hawk.choose_target()
+
+      if target is not None:
+        u = hawk.control(target)    # PN + PP vers la cible assignée
+      else:
         u = np.zeros(3)
 
       hawk.apply_acceleration_control(u)
