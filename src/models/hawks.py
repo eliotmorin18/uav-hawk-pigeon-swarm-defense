@@ -260,8 +260,8 @@ class Hawk(UAV):
 
 
 
-    def choose_target(self, pigeons):
-        """Return the chosen target among T1, T2, T3 using S_OR (Eq. 12)."""
+    def choose_target_local(self, pigeons):
+        """Old paper-based local selection among T1/T2/T3 using S_OR (Eq. 12)."""
 
         hawk_pos = np.array(self.state[:3])
         v_hawk = np.array(self.velocity_vector)
@@ -331,9 +331,6 @@ class Hawk(UAV):
         else:
             p_aim = p_pigeon
 
-
-        
-
         r = p_aim - p_hawk
         nr = np.linalg.norm(r)
 
@@ -366,6 +363,14 @@ class Hawk(UAV):
         u = u_PN - u_PP
 
         return u
+
+    def set_target(self, pigeon):
+        """Target assigned by Game (global coordination)."""
+        self.current_target = pigeon
+
+    def choose_target(self):
+        """Return current assigned target (no local selection here)."""
+        return self.current_target
 
 
     def __repr__(self):
