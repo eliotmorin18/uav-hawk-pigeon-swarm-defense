@@ -1,7 +1,7 @@
 import numpy as np
 
 class Game():
-  def __init__(self, hawks, pigeons, target, dt, capture_radius):
+  def __init__(self, hawks, pigeons, target, dt, capture_radius, experiment_mode):
     self.hawks = hawks
     self.pigeons = pigeons
     self.target = target
@@ -18,7 +18,9 @@ class Game():
     self.pigeon_alive = [1] * len(pigeons)
 
     # hawk_index -> pigeon_index
-    self.current_assignments = {}  
+    self.current_assignments = {}
+
+    self.experiment_mode = experiment_mode
 
 
   def check_capture(self):
@@ -193,23 +195,33 @@ class Game():
       self.trajectories["pigeons"][pi].append(pigeon.state[:3].copy())
 
     # ---------- 2.a GLOBAL HAWK–PIGEON ASSIGNMENT ----------
-    pigeon_info = self.compute_pigeon_danger()
-    ranked_pigeons = self.rank_pigeons_by_danger(pigeon_info)
-    assignments = self.assign_hawks_to_pigeons(ranked_pigeons, pigeon_info)
+    if self.experiment_mode == "full":
 
-    for hi, hawk in enumerate(self.hawks):
-      if hi in assignments:
-          pi = assignments[hi]
-          hawk.set_target(self.pigeons[pi])
-      else:
-          hawk.set_target(None)
+        pigeon_info = self.compute_pigeon_danger()
+        ranked_pigeons = self.rank_pigeons_by_danger(pigeon_info)
+        assignments = self.assign_hawks_to_pigeons(ranked_pigeons, pigeon_info)
+
+        for hi, hawk in enumerate(self.hawks):
+            if hi in assignments:
+                pi = assignments[hi]
+                hawk.set_target(self.pigeons[pi])
+            else:
+                hawk.set_target(None)
+
+    else:
+        # paper / paper_anticipation: no global assignment
+        self.current_assignments = {}
 
     # ---------- 2. MOVE HAWKS ----------
     for hi, hawk in enumerate(self.hawks):
-      target = hawk.choose_target()
+      # only alive pigeons should be considered in paper modes
+      alive_pigeons = [p for pi, p in enumerate(self.pigeons) if self.pigeon_alive[pi]]
+
+      target = hawk.choose_target(alive_pigeons, experiment_mode=self.experiment_mode)
+
 
       if target is not None:
-        u = hawk.control(target)    # PN + PP vers la cible assignée
+        u = hawk.control(target, experiment_mode=self.experiment_mode)
       else:
         u = np.zeros(3)
 

@@ -21,9 +21,6 @@ class Hawk(UAV):
         self.neighbor_radius = neighbor_radius  #Rnei
         self.capture_range = capture_range      #DC
 
-        self.t_go_blend = 1.0
-        self.t_go_max = 3.0
-
         self.current_target = None
         self.target_locked = False
 
@@ -174,35 +171,22 @@ class Hawk(UAV):
 
         return density_target
 
-    def compute_time_to_go(self, targeted_pigeon) :
-        """
-        Estimate time-to-go (t_go) until interception under
-        constant-velocity assumption.
-        """
-
-        p_h = np.array(self.state[:3])
-        p_p = np.array(targeted_pigeon.state[:3])
-
-        v_h = np.array(self.velocity_vector)
-        v_p = np.array(targeted_pigeon.velocity_vector)
-
-        r_vec = p_p - p_h
-        r = np.linalg.norm(r_vec)
-
-        if r <= self.capture_range:
-            return 0.0
-
-        v_rel = v_p - v_h
-        V_c = - np.dot(r, v_rel)
-
-        if V_c <= 1e-3:
-            return self.t_go_max
-
-        t_go = (r - self.capture_range) / V_c
-
-        return t_go
-    
     def compute_intercept_time(self, pigeon):
+        """
+        Estimate the interception time between the hawk and a target pigeon
+        under a constant-velocity assumption for the pigeon and constant-speed
+        motion for the hawk.
+
+        The method solves the relative motion equation analytically by finding
+        the time t > 0 at which the distance between the hawk and the pigeon
+        becomes zero, assuming the hawk can instantaneously orient its velocity
+        toward the interception point.
+
+        Returns:
+            t_int (float or None): the smallest positive interception time if a
+            real solution exists, otherwise None.
+        """
+
         p_h = np.array(self.state[:3])
         p_p = np.array(pigeon.state[:3])
         v_p = np.array(pigeon.velocity_vector)
@@ -224,40 +208,6 @@ class Hawk(UAV):
         t_candidates = [t for t in (t1, t2) if t > 0]
 
         return min(t_candidates) if t_candidates else None
-
-
-
-    def predict_pigeon_position(self, targeted_pigeon, t_go):
-        """
-        Predict pigeon position after t_go seconds
-        using constant-velocity model.
-        """
-
-        p_p = np.array(targeted_pigeon.state[:3])
-        v_p = np.array(targeted_pigeon.velocity_vector)
-
-        # Clamp time-to-go for safety
-        t = np.clip(t_go, 0.0, self.t_go_max)
-
-        p_pred = p_p + v_p * t
-
-        return p_pred
-
-
-    def get_effective_target_position(self, targeted_pigeon, p_pred, t_go):
-        """
-        Blend current and predicted position for smooth guidance.
-        """
-
-        p_now = np.array(targeted_pigeon.state[:3])
-
-        # Blend factor grows with time-to-go
-        alpha = np.clip(t_go / self.t_go_blend, 0.0, 1.0)
-
-        p_target = (1 - alpha) * p_now + alpha * p_pred
-
-        return p_target
-
 
 
     def choose_target_local(self, pigeons):
@@ -310,7 +260,7 @@ class Hawk(UAV):
         return best
 
 
-    def control(self, pigeon):
+    def control(self, pigeon, experiment_mode = "full"):
         """Return acceleration u according to PN + PP pursuit law."""
 
         p_hawk = np.array(self.state[:3])
@@ -319,17 +269,16 @@ class Hawk(UAV):
         v_hawk = np.array(self.velocity_vector)
         v_pigeon = np.array(pigeon.velocity_vector)
 
-#        t_go = self.compute_time_to_go(pigeon)
-
-#        p_pred = self.predict_pigeon_position(pigeon, t_go)
-
-#        p_aim= self.get_effective_target_position(pigeon, p_pred, t_go)
-
-        t_int = self.compute_intercept_time(pigeon)
-        if t_int is not None:
-            p_aim = p_pigeon + v_pigeon * t_int
+        if experiment_mode in ["paper_anticipation", "full"]:
+            t_int = self.compute_intercept_time(pigeon)
+            if t_int is not None:
+                p_aim = p_pigeon + v_pigeon * t_int
+            else:
+                p_aim = p_pigeon
         else:
+            # paper mode: reactive pursuit
             p_aim = p_pigeon
+
 
         r = p_aim - p_hawk
         nr = np.linalg.norm(r)
@@ -368,9 +317,17 @@ class Hawk(UAV):
         """Target assigned by Game (global coordination)."""
         self.current_target = pigeon
 
-    def choose_target(self):
-        """Return current assigned target (no local selection here)."""
-        return self.current_target
+    def choose_target(self, pigeons, experiment_mode="full"):
+        """
+        - full: use globally assigned target (Game.set_target)
+        - paper / paper_anticipation: use local paper selection (T1/T2/T3) among visible pigeons
+        """
+        if experiment_mode == "full":
+            return self.current_target
+
+        # paper modes: local selection
+        return self.choose_target_local(pigeons)
+
 
 
     def __repr__(self):

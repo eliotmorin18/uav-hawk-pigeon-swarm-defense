@@ -122,13 +122,15 @@ def main():
     for i, h in enumerate(hawks):
         print(f"  Hawk {i}: {h}")
     
+    
     # Créer le jeu
     game = Game(
         hawks=hawks,
         pigeons=pigeons,
         target=target,
         dt=sim_params["dt"],
-        capture_radius= rules_params["capture_radius"]
+        capture_radius= rules_params["capture_radius"],
+        experiment_mode= params["experiment_mode"]
     )
     
     # Lancer la simulation
