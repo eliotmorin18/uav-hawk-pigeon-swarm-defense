@@ -44,29 +44,26 @@ All deterministic objectives were successfully achieved and validated through co
 ## Repository Structure
 
 ```text
-.
-├── src/                     # Core simulation and UAV models
-│   ├── models/              # Hawk, Pigeon, UAV base classes
-│   ├── game.py              # Game logic and coordination
-│   ├── main.py              # Entry point for simulations
-│   └── config/              # Simulation parameters
+src/
+├── config/
+│   └── parameters.json        # Simulation parameters and experiment mode
 │
-├── plots/                   # Generated figures (2D / 3D trajectories)
-├── results/                 # Saved simulation trajectories and metrics
+├── core/
+│   ├── converter.py           # Control command to UAV dynamics conversion
+│   ├── dynamics.py            # UAV motion and integration model
+│   └── game.py                # Game logic and global coordination
 │
-├── reports/
-│   ├── report_1/
-│   │   ├── report_1.pdf
-│   │   └── source/
-│   ├── report_2/
-│   │   ├── report_2.pdf
-│   │   └── source/
-│   └── report_3/
-│       ├── report_3.pdf     # Final report (submission version)
-│       └── source/
+├── models/
+│   ├── uav.py                 # Base UAV class
+│   ├── hawks.py               # Hawk (defender) behavior and control
+│   └── pigeon.py              # Pigeon (attacker) behavior
 │
-├── requirements.txt
-└── README.md
+├── results/
+│   └── trajectoire.json       # Recorded trajectories (generated per run)
+│
+├── main.py                    # Entry point for simulations
+├── plot_trajectoires.py       # 2D/3D trajectory visualization
+└── plot_video.py              # Video generation from simulations
 ```
 
 ---
