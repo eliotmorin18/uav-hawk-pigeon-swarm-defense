@@ -92,6 +92,9 @@ class UAV:
         return (f"UAV(x={self.x:.1f}, y={self.y:.1f}, z={self.z:.1f}, "
                 f"V={self.V:.1f}, mu={np.degrees(self.mu):.1f}°, "
                 f"phi={np.degrees(self.phi):.1f}°)")
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> ea5c25f3a97fb094fe089d3a0eda02af62587bfa

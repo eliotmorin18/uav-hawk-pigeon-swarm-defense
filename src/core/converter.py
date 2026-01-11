@@ -13,9 +13,9 @@ def control_converter(u, mu, phi):
 
     # M matrix from the paper
     M = np.array([
-    [np.cos(mu)*np.cos(phi), -np.sin(mu)*np.cos(phi), -np.cos(mu)*np.sin(phi)],
-    [np.cos(mu)*np.sin(phi), -np.sin(mu)*np.sin(phi), np.cos(mu)*np.cos(phi)],
-    [np.sin(mu), np.cos(mu), 0]
+        [np.cos(mu)*np.cos(phi), -np.sin(mu)*np.cos(phi), -np.cos(mu)*np.sin(phi)],
+        [np.cos(mu)*np.sin(phi), -np.sin(mu)*np.sin(phi),  np.cos(mu)*np.cos(phi)],
+        [np.sin(mu),              np.cos(mu),               0]
     ])
 
     # Invert M
