@@ -44,26 +44,56 @@ All deterministic objectives were successfully achieved and validated through co
 ## Repository Structure
 
 ```text
-src/
-├── config/
-│   └── parameters.json        # Simulation parameters and experiment mode
+.
+├── README.md                  # Project overview and usage instructions
+├── LICENSE
+├── requirements.txt
+├── pytest.ini
 │
-├── core/
-│   ├── converter.py           # Control command to UAV dynamics conversion
-│   ├── dynamics.py            # UAV motion and integration model
-│   └── game.py                # Game logic and global coordination
+├── docs/
+│   ├── Hawk-Pigeon_Game_Tactics_for_Unmanned_Aerial_Vehicle_Swarm_Target_Defense.pdf
+│   │                             # Reference paper (Ruan et al., 2021)
+│   │
+│   ├── reports/                # Project reports
+│   │   ├── first_report.pdf
+│   │   ├── second_report.pdf
+│   │   ├── final_report.pdf    # Final report (submission version)
+│   │   └── final_report_LaTeX/ # Final report (LateX source)
+│   │       ├── final_report.tex
+│   │       ├── references.bib
+│   │       ├── logo_fri.png
+│   │       └── plots/           # Figures used in the final report
+│   │
+│   ├── images/                 # Exported figures from simulations
+│   │   ├── 2d_trajectories/
+│   │   └── 3d_trajectories/
+│   │
+│   └── videos/                 # Simulation videos (3v5 scenarios)
+│       ├── 3v5_paper.mp4
+│       ├── 3v5_paper_anticipation.mp4
+│       └── 3v5_full.mp4
 │
-├── models/
-│   ├── uav.py                 # Base UAV class
-│   ├── hawks.py               # Hawk (defender) behavior and control
-│   └── pigeon.py              # Pigeon (attacker) behavior
-│
-├── results/
-│   └── trajectoire.json       # Recorded trajectories (generated per run)
-│
-├── main.py                    # Entry point for simulations
-├── plot_trajectoires.py       # 2D/3D trajectory visualization
-└── plot_video.py              # Video generation from simulations
+└── src/
+    ├── main.py                 # Entry point for simulations
+    │
+    ├── config/
+    │   └── parameters.json     # Simulation parameters and experiment mode
+    │
+    ├── core/
+    │   ├── game.py             # Game logic and global coordination
+    │   ├── dynamics.py         # UAV motion and integration model
+    │   └── converter.py        # Control command to UAV dynamics conversion
+    │
+    ├── models/
+    │   ├── uav.py              # Base UAV class
+    │   ├── hawks.py            # Hawk (defender) behavior and control
+    │   └── pigeon.py           # Pigeon (attacker) behavior
+    │
+    ├── plot_trajectoires.py    # 2D/3D trajectory visualization
+    ├── plot_video.py           # Video generation from simulations
+    │
+    └── results/
+        └── trajectoire.json    # Recorded trajectories (generated per run)
 ```
 
 ---
