@@ -72,13 +72,13 @@ src/
 
 This repository includes all three project reports:
 
-- First report (first_report.pdf) – Analysis of the Hawk–Pigeon Game and baseline implementation
+- First report (docs/reports/first_report.pdf) – Analysis of the Hawk–Pigeon Game and baseline implementation
 
-- Second report (second_report.pdf) – Intermediate extensions and exploratory learning directions
+- Second report (docs/reports/second_report.pdf) – Intermediate extensions and exploratory learning directions
 
-- Final report (final_report.pdf / final_report.tex) – Coordinated UAV swarm defense with predictive interception
+- Final report (docs/reports/final_report.pdf) – Coordinated UAV swarm defense with predictive interception
 
-The PDF of the final report corresponds exactly to the version submitted for the course.
+The PDF of the final report corresponds exactly to the version submitted for the course. You can find the source of the final_report.pdf in docs/reports/final_report_LateX
 
 ---
 
