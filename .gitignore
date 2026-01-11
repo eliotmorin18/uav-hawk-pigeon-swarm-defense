@@ -16,13 +16,6 @@ data/
 outputs/
 results/
 
-# Generated simulation artifacts
-src/trajectoire.json
-src/config/parameters.json
-
-# Local plotting tweaks
-src/plot_video.py
-
 # OS / IDE
 .DS_Store
 .vscode/
