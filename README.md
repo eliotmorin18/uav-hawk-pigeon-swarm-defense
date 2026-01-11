@@ -98,6 +98,8 @@ cd uav-hawk-pigeon-swarm-defense
 pip install -r requirements.txt
 ```
 
+---
+
 ## Running the Simulation
 
 Simulation parameters (initial positions, number of hawks/pigeons, mode selection, time step) have to be defined in:
@@ -137,6 +139,8 @@ To generate plots (2D and 3D trajectories) you have to run "plot_trajectories.py
 ### Generated videos
 
 To generate videos of trajectories, you have to run "plot_video.py"
+
+---
 
 ## Reproducibility
 
