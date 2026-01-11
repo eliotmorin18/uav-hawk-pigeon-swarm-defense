@@ -23,7 +23,7 @@ This project is primarily based on:
 > W. Ruan, Y. Sun, Y. Deng, and H. Duan,  
 > _Hawk–pigeon game tactics for unmanned aerial vehicle swarm target defense_,  
 > IEEE Transactions on Cybernetics, vol. 51, no. 9, pp. 4423–4436, 2021.  
-> DOI: https://doi.org/10.1109/TSMC.2021.3125587
+> Hawk-Pigeon_Game_Tactics_for_Unmanned_Aerial_Vehicle_Swarm_Target_Defense.pdf
 
 ---
 
